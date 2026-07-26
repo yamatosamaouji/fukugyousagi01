@@ -31,11 +31,12 @@
 </div>
 <script>
 (function() {
-  /* ===== 案件ごとに置換する3箇所 ===== */
-  var GAS_URL     = '__GAS_URL__';      // GTMタグと必ず同じURLにする
-  var LIFF_ID     = '__LIFF_ID__';      // このページをエンドポイントに設定したLIFF ID
-  var LINE_OA_URL = '__LINE_OA_URL__';  // 例: https://lin.ee/xxxxxxx
-  /* ================================== */
+
+  /* ===== 設定（すべて設定済み） ===== */
+  var GAS_URL     = 'https://script.google.com/macros/s/AKfycby8VhunD91kdd5afQwbAfIP9Ebepvm-8RuAQ32Dyj8Jc6cjreXyxdXFuILuDtvRxz25Cg/exec';
+  var LIFF_ID     = '2006336075-Q4E1eNov';
+  var LINE_OA_URL = 'https://lin.ee/z3dvWhm';
+  /* ================================= */
 
   var jumped = false;
 
@@ -43,10 +44,12 @@
     var el = document.getElementById('status');
     if (el) el.innerHTML = text;
   }
+
   function getParam(name) {
     var m = location.search.match(new RegExp('[?&]' + name + '=([^&]*)'));
     return m ? decodeURIComponent(m[1]) : '';
   }
+
   function goToChat() {
     if (jumped) return;
     jumped = true;
@@ -67,6 +70,7 @@
     img.onerror = function() { setTimeout(goToChat, 700); };
     img.src = GAS_URL + '?' + params + '&callback=_liff';
 
+    // 送信の成否にかかわらず2秒後には必ずLINEへ遷移させる
     setTimeout(goToChat, 2000);
   }
 
@@ -81,12 +85,15 @@
     })
     .then(function(profile) {
       if (!profile) return;
+
       var uid = getParam('uid');
       if (!uid) {
+        console.error('uid is missing');
         setStatus('uidが取得できませんでした。<br>LINEへ移動します。');
         setTimeout(goToChat, 1000);
         return;
       }
+
       setStatus('LINE情報を記録中です...<br>しばらくお待ちください');
       sendLineData(uid, getParam('gclid'), profile.userId || '', profile.displayName || '');
     })
