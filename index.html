@@ -1,0 +1,101 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>LINE連携</title>
+  <script src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
+  <style>
+    body {
+      margin: 0;
+      padding: 40px 20px;
+      font-family: -apple-system, BlinkMacSystemFont, 'Hiragino Sans', sans-serif;
+      background: #f5f5f5;
+      text-align: center;
+    }
+    .loading { margin-top: 60px; font-size: 16px; color: #666; line-height: 1.8; }
+    .spinner {
+      width: 40px; height: 40px; margin: 20px auto;
+      border: 4px solid #e0e0e0;
+      border-top: 4px solid #06c755;
+      border-radius: 50%;
+      animation: spin 1s linear infinite;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+  </style>
+</head>
+<body>
+<div class="loading">
+  <div class="spinner"></div>
+  <p id="status">LINE連携中です...<br>しばらくお待ちください</p>
+</div>
+<script>
+(function() {
+  /* ===== 案件ごとに置換する3箇所 ===== */
+  var GAS_URL     = '__GAS_URL__';      // GTMタグと必ず同じURLにする
+  var LIFF_ID     = '__LIFF_ID__';      // このページをエンドポイントに設定したLIFF ID
+  var LINE_OA_URL = '__LINE_OA_URL__';  // 例: https://lin.ee/xxxxxxx
+  /* ================================== */
+
+  var jumped = false;
+
+  function setStatus(text) {
+    var el = document.getElementById('status');
+    if (el) el.innerHTML = text;
+  }
+  function getParam(name) {
+    var m = location.search.match(new RegExp('[?&]' + name + '=([^&]*)'));
+    return m ? decodeURIComponent(m[1]) : '';
+  }
+  function goToChat() {
+    if (jumped) return;
+    jumped = true;
+    window.location.href = LINE_OA_URL;
+  }
+
+  function sendLineData(uid, gclid, lineUserId, lineDisplayName) {
+    var params = [
+      'action=line',
+      'uid=' + encodeURIComponent(uid),
+      'gclid=' + encodeURIComponent(gclid),
+      'line_user_id=' + encodeURIComponent(lineUserId),
+      'line_display_name=' + encodeURIComponent(lineDisplayName)
+    ].join('&');
+
+    var img = new Image();
+    img.onload  = function() { setTimeout(goToChat, 500); };
+    img.onerror = function() { setTimeout(goToChat, 700); };
+    img.src = GAS_URL + '?' + params + '&callback=_liff';
+
+    setTimeout(goToChat, 2000);
+  }
+
+  liff.init({ liffId: LIFF_ID })
+    .then(function() {
+      setStatus('LINEログイン確認中です...<br>しばらくお待ちください');
+      if (!liff.isLoggedIn()) {
+        liff.login({ redirectUri: window.location.href });
+        return null;
+      }
+      return liff.getProfile();
+    })
+    .then(function(profile) {
+      if (!profile) return;
+      var uid = getParam('uid');
+      if (!uid) {
+        setStatus('uidが取得できませんでした。<br>LINEへ移動します。');
+        setTimeout(goToChat, 1000);
+        return;
+      }
+      setStatus('LINE情報を記録中です...<br>しばらくお待ちください');
+      sendLineData(uid, getParam('gclid'), profile.userId || '', profile.displayName || '');
+    })
+    .catch(function(err) {
+      console.error('LIFF Error:', err);
+      setStatus('LINE連携でエラーが発生しました。<br>LINEへ移動します。');
+      setTimeout(goToChat, 1000);
+    });
+})();
+</script>
+</body>
+</html>
